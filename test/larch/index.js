@@ -20,5 +20,6 @@
 
 'use strict';
 
-require('./happy-path.js');
-require('./circuits.js');
+require('./errors');
+require('./larch');
+require('./reservoir-backend');

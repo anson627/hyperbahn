@@ -20,5 +20,20 @@
 
 'use strict';
 
-require('./happy-path.js');
-require('./circuits.js');
+var test = require('tape');
+
+test('advertise with hyperbahn + error frame');
+test('advertise with hyperbahn + error frame + no hardFail');
+
+// TODO test advertisementTimeout semantics
+test('advertise with invalid serviceName');
+test('advertise with invalid host port');
+test('advertise with unexpected hyperbahn failure');
+test('advertise with invalid serviceName + no hardFail');
+test('advertise with invalid host port + no hardFail');
+test('advertise with unexpected hyperbahn failure + no hardFail');
+
+test('advertise in a loop');
+
+test('calling advertise() after destroy');
+test('calling getClientSubChannel() after destroy');

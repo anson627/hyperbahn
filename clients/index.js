@@ -31,24 +31,24 @@ var process = require('process');
 var uncaught = require('uncaught-exception');
 var TChannel = require('tchannel');
 var TChannelAsJSON = require('tchannel/as/json');
-var HyperbahnHandler = require('tchannel/hyperbahn/handler');
-var HyperbahnEgressNodes = require('tchannel/hyperbahn/egress-nodes');
-var ServiceProxy = require('tchannel/hyperbahn/service_proxy.js');
 var CountedReadySignal = require('ready-signal/counted');
 var fs = require('fs');
 var ProcessReporter = require('process-reporter');
 var NullStatsd = require('uber-statsd-client/null');
 
+var ServiceProxy = require('../service-proxy.js');
 var createLogger = require('./logger.js');
 var DualStatsd = require('./dual-statsd.js');
 var createRepl = require('./repl.js');
 var HeapDumper = require('./heap-dumper.js');
 var RemoteConfig = require('./remote-config.js');
+var HyperbahnEgressNodes = require('../egress-nodes.js');
+var HyperbahnHandler = require('../handler.js');
 
 module.exports = ApplicationClients;
 
 function ApplicationClients(options) {
-    /*eslint max-statements: [2, 40] */
+    /*eslint max-statements: [2, 50] */
     if (!(this instanceof ApplicationClients)) {
         return new ApplicationClients(options);
     }
@@ -78,8 +78,12 @@ function ApplicationClients(options) {
             }) :
             NullStatsd()
     );
-    self.logger = options.seedClients.logger ||
-        createLogger({
+
+    if (options.seedClients.logger) {
+        self.logger = options.seedClients.logger;
+        self.logReservoir = null;
+    } else {
+        var loggerParts = createLogger({
             team: config.get('info.team'),
             project: config.get('info.project'),
             kafka: config.get('clients.logtron.kafka'),
@@ -88,6 +92,9 @@ function ApplicationClients(options) {
             sentry: config.get('clients.logtron.sentry'),
             statsd: self.statsd
         });
+        self.logger = loggerParts.logger;
+        self.logReservoir = loggerParts.logReservoir;
+    }
 
     /*eslint no-process-env: 0*/
     var uncaughtTimeouts = config.get('clients.uncaught-exception.timeouts');
@@ -243,7 +250,7 @@ function bootstrap(cb) {
 
     assert(typeof cb === 'function', 'cb required');
 
-    var listenReady = CountedReadySignal(3);
+    var listenReady = CountedReadySignal(4);
     listenReady(onListen);
 
     self.processReporter.bootstrap();
@@ -254,6 +261,12 @@ function bootstrap(cb) {
 
     self.repl.once('listening', listenReady.signal);
     self.repl.start();
+
+    if (self.logger.bootstrap) {
+        self.logger.bootstrap(listenReady.signal);
+    } else {
+        listenReady.signal();
+    }
 
     self._controlServer.listen(self._controlPort, listenReady.signal);
 
@@ -279,6 +292,10 @@ ApplicationClients.prototype.destroy = function destroy() {
 
     self.repl.close();
     self._controlServer.close();
+
+    if (self.logger.destroy) {
+        self.logger.destroy();
+    }
 };
 
 ApplicationClients.prototype.onRemoteConfigUpdate = function onRemoteConfigUpdate() {
@@ -290,6 +307,18 @@ ApplicationClients.prototype.onRemoteConfigUpdate = function onRemoteConfigUpdat
     self.updateExemptServices();
     self.updateRpsLimitForServiceName();
     self.updateKValues();
+    self.updateReservoir();
+};
+
+ApplicationClients.prototype.updateReservoir = function updateReservoir() {
+    var self = this;
+    if (self.logReservoir) {
+        var size = self.remoteConfig.get('log.reservoir.size', 100);
+        var interval = self.remoteConfig.get('log.reservoir.flushInterval', 50);
+
+        self.logReservoir.setFlushInterval(interval);
+        self.logReservoir.setSize(size);
+    }
 };
 
 ApplicationClients.prototype.updateCircuitsEnabled = function updateCircuitsEnabled() {

@@ -19,6 +19,35 @@
 // THE SOFTWARE.
 
 'use strict';
+var test = require('tape');
+var EventEmitter = require('tchannel/lib/event_emitter');
 
-require('./happy-path.js');
-require('./circuits.js');
+var EgressNode = require('../../egress-nodes.js');
+
+test('set default k value works', function t(assert) {
+    var ringpop = new EventEmitter();
+    ringpop.membershipChangedEvent = ringpop.defineEvent('membershipChanged');
+    var node = new EgressNode({
+        ringpop: ringpop,
+        defaultKValue: 10
+    });
+
+    assert.equals(node.defaultKValue, 10, 'default value initialized');
+    node.setDefaultKValue(11);
+    assert.equals(node.defaultKValue, 11, 'default value gets updated');
+    assert.end();
+});
+
+test('set wrong default k', function t(assert) {
+    var ringpop = new EventEmitter();
+    ringpop.membershipChangedEvent = ringpop.defineEvent('membershipChanged');
+    var node = new EgressNode({
+        ringpop: ringpop,
+        defaultKValue: 10
+    });
+
+    assert.throws(function wrongKValue() {
+        node.setDefaultKValue(-1);
+    });
+    assert.end();
+});

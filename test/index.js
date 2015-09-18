@@ -39,3 +39,5 @@ require('./trace.js');
 require('./remote-config-client.js');
 require('./remote-config.js');
 require('./time-series/requesting-a-service-with-spiky-traffic.js');
+require('./larch/');
+require('./rate-limiter.js');

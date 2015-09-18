@@ -20,5 +20,39 @@
 
 'use strict';
 
-require('./happy-path.js');
-require('./circuits.js');
+var assert = require('assert');
+
+// Peer and Circuit are state machines.
+
+module.exports = StateMachine;
+
+function StateMachine() {
+    var self = this;
+    self.state = null;
+    self.stateOptions = null;
+}
+
+StateMachine.prototype.setState = function setState(StateType) {
+    var self = this;
+
+    var currentType = self.state && self.state.type;
+    if (currentType &&
+        StateType.prototype.type &&
+        StateType.prototype.type === currentType) {
+        return null;
+    }
+
+    assert(self.stateOptions, 'state machine must have stateOptions');
+    var state = new StateType(self.stateOptions);
+    if (state && state.type === currentType) {
+        return null;
+    }
+
+    var oldState = self.state;
+    self.state = state;
+    if (oldState) {
+        oldState.onDeactivate();
+    }
+    self.stateChangedEvent.emit(self, [oldState, state]);
+    return state;
+};
