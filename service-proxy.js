@@ -331,7 +331,6 @@ ServiceDispatchHandler.prototype.removeServicePeer =
 function removeServicePeer(serviceName, hostPort) {
     var self = this;
 
-    console.log("ServiceDispatchHandler", serviceName);
     var svcchan = self.channel.subChannels[serviceName];
     if (!svcchan) {
         return;
@@ -341,7 +340,6 @@ function removeServicePeer(serviceName, hostPort) {
     if (!peer) {
         return;
     }
-    console.log('ServiceDispatchHandler delete peer from subchannel');
     svcchan.peers.delete(hostPort);
 
     var anyOtherSubChan = false;
@@ -355,7 +353,6 @@ function removeServicePeer(serviceName, hostPort) {
     }
 
     if (!anyOtherSubChan) {
-        console.log('ServiceDispatchHandler delete peer from topchannel');
         peer.close(noop);
         self.channel.peers.delete(hostPort);
     }
@@ -697,6 +694,8 @@ function disableRateLimiter() {
 ServiceDispatchHandler.prototype.extendLogInfo =
 function extendLogInfo(info) {
     var self = this;
+
+    self.channel.extendLogInfo(info);
 
     info.affineServices = Object.keys(self.exitServices);
 

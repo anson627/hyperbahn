@@ -34,7 +34,6 @@ if (require.main === module) {
 }
 
 function runTests(HyperbahnCluster) {
-    /*
     HyperbahnCluster.test('advertise and forward', {
         size: 5,
         servicePurgePeriod: 50
@@ -75,7 +74,7 @@ function runTests(HyperbahnCluster) {
             assert.end();
         }
     });
-    */
+
     HyperbahnCluster.test('advertise, unadvertise and forward', {
         size: 5,
         servicePurgePeriod: 50
@@ -123,7 +122,7 @@ function runTests(HyperbahnCluster) {
             assert.end();
         }
     });
-    /*
+
     HyperbahnCluster.test('advertise, unadvertise and re-advertise', {
         size: 5
     }, function t(cluster, assert) {
@@ -160,5 +159,5 @@ function runTests(HyperbahnCluster) {
             assert.end();
         }
     });
-    */
+
 }
