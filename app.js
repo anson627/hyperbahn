@@ -75,6 +75,16 @@ function Application(config, opts) {
     self.drainStart = null;
     self.drainEnd = null;
 
+    self.tchannel.drainExempt = function isReqDrainExempt(req) {
+        if (req.serviceName === 'ringpop' ||
+            req.serviceName === 'autobahn'
+        ) {
+            return true;
+        }
+
+        return false;
+    };
+
     self.isBootstrapped = false;
 
     // internal because its already deprecated
@@ -108,7 +118,7 @@ Application.prototype.bootstrap = function bootstrap(cb) {
     self.isBootstrapped = true;
 
     self.setupServices();
-    self.hookupSignals();
+
     self.clients.bootstrap(onClientsReady);
 
     function onClientsReady(err) {
@@ -167,14 +177,9 @@ function startDrain() {
 
     self.drainStart = self.tchannel.timers.now();
     self.logger.info('got SIGTERM, draining application', self.extendLogInfo({}));
-    self.tchannel.drain('shutting down due to SIGTERM',
-                        isReqDrainExempt, drainedThenClose);
+    self.tchannel.drain('shutting down due to SIGTERM', drainedThenClose);
     self.drainDeadlineTimer = self.tchannel.timers.setTimeout(
         deadlineTimedOut, DRAIN_DEADLINE_TIMEOUT);
-
-    function isReqDrainExempt(req) {
-        return self.isReqDrainExempt(req);
-    }
 
     function drainedThenClose() {
         self.drainedThenClose();
@@ -210,20 +215,6 @@ function drainedThenClose() {
 
     if (!self.destroyed) {
         self.finishDrain('info', 'tchannel drained, destroying application');
-    }
-};
-
-Application.prototype.isReqDrainExempt =
-function isReqDrainExempt(req) {
-    var self = this;
-
-    // we only drain relay requests
-    var chan = self.tchannel.subChannels[req.serviceName];
-    var type = chan && chan.handler && chan.handler.type;
-    if (type === 'tchannel.relay-handler') {
-        return false;
-    } else {
-        return true;
     }
 };
 

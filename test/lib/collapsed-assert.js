@@ -20,44 +20,52 @@
 
 'use strict';
 
-var allocCluster = require('../lib/test-cluster.js');
+var nodeAssert = require('assert');
 
-allocCluster.test('forwarding small timeout concurrently', {
-    size: 5,
-    namedRemotes: ['tcollector2', 'tcollector2', 'tcollector2']
-}, function t(cluster, assert) {
-    cluster.logger.whitelist('warn', 'forwarding error frame');
+module.exports = CollapsedAssert;
 
-    var bob = cluster.remotes.bob;
-
-    var fooCounter = 0;
-
-    var tcollector0 = cluster.namedRemotes[0];
-    var tcollector1 = cluster.namedRemotes[1];
-    var tcollector2 = cluster.namedRemotes[2];
-
-    tcollector0.serverChannel.register('foo', foo);
-    tcollector1.serverChannel.register('foo', foo);
-    tcollector2.serverChannel.register('foo', foo);
-
-    bob.clientChannel.request({
-        serviceName: 'tcollector2'
-    }).send('foo', '', '', onResponse);
-
-    function onResponse(err, resp) {
-        assert.ok(err);
-        assert.equal(err.message, 'unexpected error');
-
-        var lines = cluster.logger.items();
-        assert.ok(lines.length >= 1);
-        assert.equal(lines[0].meta.error.type, 'tchannel.unexpected');
-
-        assert.end();
+// TODO more methods
+function CollapsedAssert() {
+    if (!(this instanceof CollapsedAssert)) {
+        return new CollapsedAssert();
     }
 
-    function foo(req, res) {
-        fooCounter++;
+    var self = this;
 
-        res.sendError('UnexpectedError', 'unexpected error');
+    self._commands = [];
+    self._failed = false;
+}
+
+CollapsedAssert.prototype.equal = function equal(a, b, msg, extra) {
+    var self = this;
+
+    if (a !== b) {
+        self._failed = true;
     }
-});
+
+    self._commands.push(['equal', a, b, msg, extra]);
+};
+
+CollapsedAssert.prototype.fail = function fail(msg, extra) {
+    var self = this;
+
+    self._failed = true;
+    self._commands.push(['fail', msg, extra]);
+};
+
+CollapsedAssert.prototype.report = function report(realAssert, message) {
+    var self = this;
+
+    nodeAssert(message, 'must pass message');
+
+    if (!self._failed) {
+        return realAssert.ok(true, message);
+    }
+
+    for (var i = 0; i < self._commands; i++) {
+        var command = self._commands[i];
+
+        var method = command.shift();
+        realAssert[method].apply(realAssert, command);
+    }
+};

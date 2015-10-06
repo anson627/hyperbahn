@@ -188,7 +188,10 @@ function ApplicationClients(options) {
         serviceReqDefaults: options.serviceReqDefaults,
         rateLimiterEnabled: false,
         rateLimiterBuckets: options.rateLimiterBuckets,
-        circuitsConfig: circuitsConfig
+        circuitsConfig: circuitsConfig,
+        partialAffinityEnabled: false,
+        minPeersPerRelay: options.minPeersPerRelay,
+        minPeersPerWorker: options.minPeersPerWorker
     };
 
     self.serviceProxy = ServiceProxy(serviceProxyOpts);
@@ -323,6 +326,7 @@ ApplicationClients.prototype.destroy = function destroy() {
 
 ApplicationClients.prototype.onRemoteConfigUpdate = function onRemoteConfigUpdate() {
     var self = this;
+    self.updateLazyHandling();
     self.updateCircuitsEnabled();
     self.updateCircuitTestServiceName();
     self.updateRateLimitingEnabled();
@@ -331,6 +335,13 @@ ApplicationClients.prototype.onRemoteConfigUpdate = function onRemoteConfigUpdat
     self.updateRpsLimitForServiceName();
     self.updateKValues();
     self.updateReservoir();
+    self.updatePartialAffinityEnabled();
+};
+
+ApplicationClients.prototype.updateLazyHandling = function updateLazyHandling() {
+    var self = this;
+    var enabled = self.remoteConfig.get('lazy.handling.enabled', false);
+    self.tchannel.setLazyHandling(enabled);
 };
 
 ApplicationClients.prototype.updateReservoir = function updateReservoir() {
@@ -371,6 +382,16 @@ ApplicationClients.prototype.updateRateLimitingEnabled = function updateRateLimi
         self.serviceProxy.enableRateLimiter();
     } else {
         self.serviceProxy.disableRateLimiter();
+    }
+};
+
+ApplicationClients.prototype.updatePartialAffinityEnabled = function updatePartialAffinityEnabled() {
+    var self = this;
+    var enabled = self.remoteConfig.get('partialAffinity.enabled', false);
+    if (enabled) {
+        self.serviceProxy.enablePartialAffinity();
+    } else {
+        self.serviceProxy.disablePartialAffinity();
     }
 };
 
